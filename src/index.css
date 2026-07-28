@@ -531,6 +531,12 @@ input[type="checkbox"] {
 }
 
 /* Responsive */
+@media (max-width: 1024px) {
+  main > div[style*="grid-template-columns"] {
+    grid-template-columns: 1fr !important;
+  }
+}
+
 @media (max-width: 768px) {
   .matrix-grid {
     grid-template-columns: 1fr;
