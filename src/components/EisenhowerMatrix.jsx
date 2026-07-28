@@ -32,7 +32,6 @@ const QUADRANTS = [
 export default function EisenhowerMatrix() {
   const { tasks, updateQuadrant } = useTaskStore()
   const [draggedTask, setDraggedTask] = useState(null)
-  const [touchStartY, setTouchStartY] = useState(null)
   const [selectedTaskForTimer, setSelectedTaskForTimer] = useState(null)
 
   const getTasksByQuadrant = (quadrant) => {
@@ -41,17 +40,12 @@ export default function EisenhowerMatrix() {
 
   const handleDragStart = (e, task) => {
     setDraggedTask(task)
-    if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'
-  }
-
-  const handleTouchStart = (e, task) => {
-    setDraggedTask(task)
-    setTouchStartY(e.touches[0].clientY)
+    e.dataTransfer.effectAllowed = 'move'
   }
 
   const handleDragOver = (e) => {
     e.preventDefault()
-    if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'
+    e.dataTransfer.dropEffect = 'move'
   }
 
   const handleDrop = async (e, quadrant) => {
@@ -63,17 +57,6 @@ export default function EisenhowerMatrix() {
         console.error('Failed to update quadrant:', err)
       }
       setDraggedTask(null)
-      setTouchStartY(null)
-    }
-  }
-
-  const handleTouchEnd = async (e, quadrant) => {
-    const touchEndY = e.changedTouches[0].clientY
-    if (draggedTask && Math.abs(touchEndY - touchStartY) > 20) {
-      await handleDrop(e, quadrant)
-    } else {
-      setDraggedTask(null)
-      setTouchStartY(null)
     }
   }
 
@@ -83,7 +66,7 @@ export default function EisenhowerMatrix() {
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 3fr', gap: '1.5rem', alignItems: 'start' }}>
       {/* Sidebar with unassigned tasks */}
       <div style={{
-        background: 'var(--bg-light)',
+        background: 'var(--bg-white)',
         border: '2px dashed var(--border-color)',
         borderRadius: '0.75rem',
         padding: '1rem',
@@ -106,7 +89,6 @@ export default function EisenhowerMatrix() {
                 key={task.id}
                 draggable
                 onDragStart={(e) => handleDragStart(e, task)}
-                onTouchStart={(e) => handleTouchStart(e, task)}
                 style={{
                   background: 'var(--primary-light)',
                   padding: '0.75rem',
@@ -116,7 +98,6 @@ export default function EisenhowerMatrix() {
                   transition: 'all 0.2s',
                   fontSize: '0.875rem',
                   border: '1px solid var(--primary-color)',
-                  touchAction: 'none',
                 }}
               >
                 <div style={{ fontWeight: 500, wordBreak: 'break-word' }}>{task.title}</div>
@@ -146,7 +127,6 @@ export default function EisenhowerMatrix() {
               className={`quadrant ${quadrant.bgClass}`}
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, quadrant.key)}
-              onTouchEnd={(e) => handleTouchEnd(e, quadrant.key)}
             >
               <div className="quadrant-header">
                 <div>{quadrant.title}</div>
@@ -173,12 +153,10 @@ export default function EisenhowerMatrix() {
                       key={task.id}
                       draggable
                       onDragStart={(e) => handleDragStart(e, task)}
-                      onTouchStart={(e) => handleTouchStart(e, task)}
                       className="draggable-task"
                       style={{
                         opacity: draggedTask?.id === task.id ? 0.5 : 1,
                         cursor: draggedTask?.id === task.id ? 'grabbing' : 'grab',
-                        touchAction: 'none',
                       }}
                     >
                       <div className="card" style={{
