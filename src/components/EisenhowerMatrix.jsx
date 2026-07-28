@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useTaskStore } from '../store/taskStore'
 import TaskCard from './TaskCard'
 
@@ -32,8 +32,9 @@ const QUADRANTS = [
 export default function EisenhowerMatrix() {
   const { tasks, updateQuadrant } = useTaskStore()
   const [draggedTask, setDraggedTask] = useState(null)
-  const [touchStartY, setTouchStartY] = useState(null)
+  const [selectedForMove, setSelectedForMove] = useState(null)
   const [selectedTaskForTimer, setSelectedTaskForTimer] = useState(null)
+  const touchTimerRef = useRef(null)
 
   const getTasksByQuadrant = (quadrant) => {
     return tasks.filter(t => t.quadrant === quadrant)
@@ -42,11 +43,6 @@ export default function EisenhowerMatrix() {
   const handleDragStart = (e, task) => {
     setDraggedTask(task)
     if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'
-  }
-
-  const handleTouchStart = (e, task) => {
-    setDraggedTask(task)
-    setTouchStartY(e.touches[0].clientY)
   }
 
   const handleDragOver = (e) => {
@@ -63,17 +59,29 @@ export default function EisenhowerMatrix() {
         console.error('Failed to update quadrant:', err)
       }
       setDraggedTask(null)
-      setTouchStartY(null)
     }
   }
 
-  const handleTouchEnd = async (e, quadrant) => {
-    const touchEndY = e.changedTouches[0].clientY
-    if (draggedTask && Math.abs(touchEndY - touchStartY) > 20) {
-      await handleDrop(e, quadrant)
-    } else {
-      setDraggedTask(null)
-      setTouchStartY(null)
+  const handleTouchStart = (task) => {
+    if (touchTimerRef.current) clearTimeout(touchTimerRef.current)
+    touchTimerRef.current = setTimeout(() => {
+      setSelectedForMove(task)
+      touchTimerRef.current = null
+    }, 500)
+  }
+
+  const handleTouchCancel = () => {
+    if (touchTimerRef.current) clearTimeout(touchTimerRef.current)
+  }
+
+  const handleMoveToQuadrant = async (quadrant) => {
+    if (selectedForMove) {
+      try {
+        await updateQuadrant(selectedForMove.id, quadrant)
+        setSelectedForMove(null)
+      } catch (err) {
+        console.error('Failed to update quadrant:', err)
+      }
     }
   }
 
@@ -82,9 +90,13 @@ export default function EisenhowerMatrix() {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 3fr', gap: '1.5rem', alignItems: 'start' }}>
       {/* Sidebar with unassigned tasks */}
-      <div style={{
-        background: 'var(--bg-light)',
-        border: '2px dashed var(--border-color)',
+      <div
+        onDragOver={handleDragOver}
+        onDrop={(e) => handleDrop(e, 'unassigned')}
+        onTouchEnd={(e) => handleQuadrantTouchEnd(e, 'unassigned')}
+        style={{
+        background: '#f0fdf4',
+        border: '2px dashed var(--green-600)',
         borderRadius: '0.75rem',
         padding: '1rem',
         maxHeight: '600px',
@@ -102,27 +114,74 @@ export default function EisenhowerMatrix() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             {unassignedTasks.map(task => (
-              <div
-                key={task.id}
-                draggable
-                onDragStart={(e) => handleDragStart(e, task)}
-                onTouchStart={(e) => handleTouchStart(e, task)}
-                style={{
-                  background: 'var(--primary-light)',
-                  padding: '0.75rem',
-                  borderRadius: '0.5rem',
-                  cursor: 'grab',
-                  opacity: draggedTask?.id === task.id ? 0.5 : 1,
-                  transition: 'all 0.2s',
-                  fontSize: '0.875rem',
-                  border: '1px solid var(--primary-color)',
-                  touchAction: 'none',
-                }}
-              >
-                <div style={{ fontWeight: 500, wordBreak: 'break-word' }}>{task.title}</div>
-                {task.due_date && (
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-gray)', marginTop: '0.25rem' }}>
-                    📅 {new Date(task.due_date).toLocaleDateString()}
+              <div key={task.id}>
+                <div
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, task)}
+                  onContextMenu={(e) => { e.preventDefault(); setSelectedForMove(task) }}
+                  onTouchStart={() => handleTouchStart(task)}
+                  onTouchEnd={handleTouchCancel}
+                  onTouchMove={handleTouchCancel}
+                  style={{
+                    background: selectedForMove?.id === task.id ? 'var(--primary-light)' : 'var(--bg-white)',
+                    padding: '0.75rem',
+                    borderRadius: '0.5rem',
+                    cursor: 'grab',
+                    opacity: draggedTask?.id === task.id ? 0.5 : 1,
+                    transition: 'all 0.2s',
+                    fontSize: '0.875rem',
+                    border: selectedForMove?.id === task.id ? '2px solid var(--primary-color)' : '2px solid var(--green-600)',
+                    touchAction: 'none',
+                    marginBottom: '0.5rem',
+                  }}
+                >
+                  <div style={{ fontWeight: 500, wordBreak: 'break-word', color: 'var(--text-dark)' }}>{task.title}</div>
+                  {task.due_date && (
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-gray)', marginTop: '0.25rem' }}>
+                      📅 {new Date(task.due_date).toLocaleDateString()}
+                    </div>
+                  )}
+                </div>
+                {selectedForMove?.id === task.id && (
+                  <div style={{ display: 'flex', gap: '0.25rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                    {[
+                      { quad: 'urgent-important', label: '🔴', name: 'Urgent & Important' },
+                      { quad: 'not-urgent-important', label: '🟢', name: 'Not Urgent & Important' },
+                      { quad: 'urgent-not-important', label: '🟡', name: 'Urgent & Not Important' },
+                      { quad: 'not-urgent-not-important', label: '⚪', name: 'Not Urgent & Not Important' },
+                    ].map(({ quad, label }) => (
+                      <button
+                        key={quad}
+                        onClick={() => handleMoveToQuadrant(quad)}
+                        style={{
+                          flex: 1,
+                          padding: '0.5rem',
+                          background: 'var(--primary-color)',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '0.375rem',
+                          cursor: 'pointer',
+                          fontSize: '1.25rem',
+                        }}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => setSelectedForMove(null)}
+                      style={{
+                        flex: 1,
+                        padding: '0.5rem',
+                        background: 'var(--border-color)',
+                        color: 'var(--text-dark)',
+                        border: 'none',
+                        borderRadius: '0.375rem',
+                        cursor: 'pointer',
+                        fontSize: '0.875rem',
+                      }}
+                    >
+                      Cancel
+                    </button>
                   </div>
                 )}
               </div>
@@ -146,7 +205,7 @@ export default function EisenhowerMatrix() {
               className={`quadrant ${quadrant.bgClass}`}
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, quadrant.key)}
-              onTouchEnd={(e) => handleTouchEnd(e, quadrant.key)}
+              onTouchEnd={(e) => handleQuadrantTouchEnd(e, quadrant.key)}
             >
               <div className="quadrant-header">
                 <div>{quadrant.title}</div>
@@ -169,46 +228,95 @@ export default function EisenhowerMatrix() {
                   </div>
                 ) : (
                   quadrantTasks.map(task => (
-                    <div
-                      key={task.id}
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, task)}
-                      onTouchStart={(e) => handleTouchStart(e, task)}
-                      className="draggable-task"
-                      style={{
-                        opacity: draggedTask?.id === task.id ? 0.5 : 1,
-                        cursor: draggedTask?.id === task.id ? 'grabbing' : 'grab',
-                        touchAction: 'none',
-                      }}
-                    >
-                      <div className="card" style={{
-                        cursor: 'grab',
-                        padding: '0.75rem',
-                        marginBottom: '0.5rem',
-                      }}>
-                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                          <input
-                            type="checkbox"
-                            checked={task.status === 'done'}
-                            onChange={() => {}}
-                            onClick={() => {}}
-                            style={{ marginTop: 0 }}
-                          />
-                          <span style={{
-                            flex: 1,
-                            textDecoration: task.status === 'done' ? 'line-through' : 'none',
-                            opacity: task.status === 'done' ? 0.6 : 1,
-                            fontSize: '0.875rem'
-                          }}>
-                            {task.title}
-                          </span>
-                        </div>
-                        {task.pomodoro_count > 0 && (
-                          <div style={{ fontSize: '0.75rem', marginTop: '0.25rem', color: 'var(--text-gray)' }}>
-                            🍅 {task.pomodoro_count}
+                    <div key={task.id}>
+                      <div
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, task)}
+                        onContextMenu={(e) => { e.preventDefault(); setSelectedForMove(task) }}
+                        onTouchStart={() => handleTouchStart(task)}
+                        onTouchEnd={handleTouchCancel}
+                        onTouchMove={handleTouchCancel}
+                        className="draggable-task"
+                        style={{
+                          opacity: draggedTask?.id === task.id ? 0.5 : 1,
+                          cursor: draggedTask?.id === task.id ? 'grabbing' : 'grab',
+                          touchAction: 'none',
+                        }}
+                      >
+                        <div className="card" style={{
+                          cursor: 'grab',
+                          padding: '0.75rem',
+                          marginBottom: '0.5rem',
+                          background: selectedForMove?.id === task.id ? 'var(--primary-light)' : 'var(--bg-white)',
+                          border: selectedForMove?.id === task.id ? '2px solid var(--primary-color)' : '1px solid var(--border-color)',
+                        }}>
+                          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                            <input
+                              type="checkbox"
+                              checked={task.status === 'done'}
+                              onChange={() => {}}
+                              onClick={() => {}}
+                              style={{ marginTop: 0 }}
+                            />
+                            <span style={{
+                              flex: 1,
+                              textDecoration: task.status === 'done' ? 'line-through' : 'none',
+                              opacity: task.status === 'done' ? 0.6 : 1,
+                              fontSize: '0.875rem'
+                            }}>
+                              {task.title}
+                            </span>
                           </div>
-                        )}
+                          {task.pomodoro_count > 0 && (
+                            <div style={{ fontSize: '0.75rem', marginTop: '0.25rem', color: 'var(--text-gray)' }}>
+                              🍅 {task.pomodoro_count}
+                            </div>
+                          )}
+                        </div>
                       </div>
+                      {selectedForMove?.id === task.id && (
+                        <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
+                          {[
+                            { quad: 'urgent-important', label: '🔴', name: 'Urgent & Important' },
+                            { quad: 'not-urgent-important', label: '🟢', name: 'Not Urgent & Important' },
+                            { quad: 'urgent-not-important', label: '🟡', name: 'Urgent & Not Important' },
+                            { quad: 'not-urgent-not-important', label: '⚪', name: 'Not Urgent & Not Important' },
+                            { quad: 'unassigned', label: '📋', name: 'Unassigned' },
+                          ].map(({ quad, label }) => (
+                            <button
+                              key={quad}
+                              onClick={() => handleMoveToQuadrant(quad)}
+                              style={{
+                                flex: 1,
+                                padding: '0.5rem',
+                                background: 'var(--primary-color)',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '0.375rem',
+                                cursor: 'pointer',
+                                fontSize: '1.25rem',
+                              }}
+                            >
+                              {label}
+                            </button>
+                          ))}
+                          <button
+                            onClick={() => setSelectedForMove(null)}
+                            style={{
+                              flex: 1,
+                              padding: '0.5rem',
+                              background: 'var(--border-color)',
+                              color: 'var(--text-dark)',
+                              border: 'none',
+                              borderRadius: '0.375rem',
+                              cursor: 'pointer',
+                              fontSize: '0.875rem',
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ))
                 )}
