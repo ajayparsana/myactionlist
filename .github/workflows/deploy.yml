@@ -15,12 +15,15 @@ jobs:
           node-version: '18'
 
       - run: npm ci
-      - run: npm run build
+
+      - name: Build with environment variables
+        run: npm run build
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
       - uses: peaceiris/actions-gh-pages@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.GH_PAGES_PAT }}
           publish_dir: ./dist
+          publish_branch: gh-pages
