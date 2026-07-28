@@ -1,15 +1,53 @@
 import { useState } from 'react'
 import { useTaskStore } from '../store/taskStore'
-import { formatDistanceToNow } from 'date-fns'
 import TaskCard from './TaskCard'
 import PomodoroTimer from './PomodoroTimer'
 
-export default function TaskList() {
-  const { tasks } = useTaskStore()
+export default function TaskList({ onEditTask }) {
+  const { tasks, reorderTasks } = useTaskStore()
   const [selectedTaskForTimer, setSelectedTaskForTimer] = useState(null)
+  const [draggedTaskId, setDraggedTaskId] = useState(null)
 
   const pendingTasks = tasks.filter(t => t.status !== 'done')
   const completedTasks = tasks.filter(t => t.status === 'done')
+
+  const handleDragStart = (e, taskId) => {
+    setDraggedTaskId(taskId)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  const handleDragOver = (e) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+  }
+
+  const handleDrop = async (e, targetTaskId) => {
+    e.preventDefault()
+    if (!draggedTaskId || draggedTaskId === targetTaskId) {
+      setDraggedTaskId(null)
+      return
+    }
+
+    const draggedIndex = pendingTasks.findIndex(t => t.id === draggedTaskId)
+    const targetIndex = pendingTasks.findIndex(t => t.id === targetTaskId)
+
+    if (draggedIndex === -1 || targetIndex === -1) {
+      setDraggedTaskId(null)
+      return
+    }
+
+    const reordered = [...pendingTasks]
+    const [draggedTask] = reordered.splice(draggedIndex, 1)
+    reordered.splice(targetIndex, 0, draggedTask)
+
+    try {
+      await reorderTasks(reordered)
+    } catch (err) {
+      console.error('Failed to reorder tasks:', err)
+    }
+
+    setDraggedTaskId(null)
+  }
 
   if (selectedTaskForTimer) {
     return (
@@ -37,12 +75,28 @@ export default function TaskList() {
           <h2 style={{ marginBottom: '1rem' }}>
             Pending ({pendingTasks.length})
           </h2>
-          {pendingTasks.map(task => (
-            <TaskCard
+          <p style={{ color: 'var(--text-gray)', fontSize: '0.875rem', marginBottom: '1rem' }}>
+            💡 Drag tasks to reorder by your preference
+          </p>
+          {pendingTasks.map((task, index) => (
+            <div
               key={task.id}
-              task={task}
-              onStartTimer={() => setSelectedTaskForTimer(task)}
-            />
+              draggable
+              onDragStart={(e) => handleDragStart(e, task.id)}
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, task.id)}
+              style={{
+                opacity: draggedTaskId === task.id ? 0.5 : 1,
+                transition: 'opacity 0.2s',
+              }}
+            >
+              <TaskCard
+                task={task}
+                onStartTimer={() => setSelectedTaskForTimer(task)}
+                onEdit={() => onEditTask?.(task)}
+                isDragging={draggedTaskId === task.id}
+              />
+            </div>
           ))}
         </section>
       )}
@@ -57,6 +111,7 @@ export default function TaskList() {
               key={task.id}
               task={task}
               onStartTimer={() => setSelectedTaskForTimer(task)}
+              onEdit={() => onEditTask?.(task)}
             />
           ))}
         </section>

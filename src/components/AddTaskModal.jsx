@@ -1,17 +1,32 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useTaskStore } from '../store/taskStore'
 import { v4 as uuidv4 } from 'uuid'
 
 const TAGS = ['Work', 'Personal', 'Health', 'Learning']
 
-export default function AddTaskModal({ isOpen, onClose }) {
-  const { createTask } = useTaskStore()
+export default function AddTaskModal({ isOpen, onClose, taskToEdit = null }) {
+  const { createTask, updateTask } = useTaskStore()
   const [title, setTitle] = useState('')
   const [notes, setNotes] = useState('')
   const [dueDate, setDueDate] = useState('')
   const [selectedTags, setSelectedTags] = useState([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
+
+  useEffect(() => {
+    if (taskToEdit) {
+      setTitle(taskToEdit.title)
+      setNotes(taskToEdit.notes || '')
+      setDueDate(taskToEdit.due_date ? taskToEdit.due_date.split('T')[0] : '')
+      setSelectedTags(taskToEdit.tags || [])
+    } else {
+      setTitle('')
+      setNotes('')
+      setDueDate('')
+      setSelectedTags([])
+    }
+    setError(null)
+  }, [taskToEdit, isOpen])
 
   const handleToggleTag = (tag) => {
     setSelectedTags(prev =>
@@ -30,17 +45,26 @@ export default function AddTaskModal({ isOpen, onClose }) {
     setError(null)
 
     try {
-      await createTask({
-        id: uuidv4(),
-        title: title.trim(),
-        notes: notes.trim() || null,
-        due_date: dueDate ? new Date(dueDate).toISOString() : null,
-        tags: selectedTags.length > 0 ? selectedTags : null,
-        quadrant: 'unassigned',
-        order_index: 0,
-        status: 'pending',
-        pomodoro_count: 0,
-      })
+      if (taskToEdit) {
+        await updateTask(taskToEdit.id, {
+          title: title.trim(),
+          notes: notes.trim() || null,
+          due_date: dueDate ? new Date(dueDate).toISOString() : null,
+          tags: selectedTags.length > 0 ? selectedTags : null,
+        })
+      } else {
+        await createTask({
+          id: uuidv4(),
+          title: title.trim(),
+          notes: notes.trim() || null,
+          due_date: dueDate ? new Date(dueDate).toISOString() : null,
+          tags: selectedTags.length > 0 ? selectedTags : null,
+          quadrant: 'unassigned',
+          order_index: 0,
+          status: 'pending',
+          pomodoro_count: 0,
+        })
+      }
 
       setTitle('')
       setNotes('')
@@ -48,7 +72,7 @@ export default function AddTaskModal({ isOpen, onClose }) {
       setSelectedTags([])
       onClose()
     } catch (err) {
-      setError(err.message || 'Failed to create task')
+      setError(err.message || `Failed to ${taskToEdit ? 'update' : 'create'} task`)
     } finally {
       setIsLoading(false)
     }
@@ -60,7 +84,7 @@ export default function AddTaskModal({ isOpen, onClose }) {
     <div className="modal open">
       <div className="modal-content">
         <div className="modal-header">
-          <h2>New Task</h2>
+          <h2>{taskToEdit ? 'Edit Task' : 'New Task'}</h2>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
 
@@ -150,7 +174,7 @@ export default function AddTaskModal({ isOpen, onClose }) {
               className="btn btn-primary"
               disabled={isLoading}
             >
-              {isLoading ? 'Creating...' : 'Create Task'}
+              {isLoading ? (taskToEdit ? 'Updating...' : 'Creating...') : (taskToEdit ? 'Update Task' : 'Create Task')}
             </button>
           </div>
         </form>

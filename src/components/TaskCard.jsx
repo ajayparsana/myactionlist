@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useTaskStore } from '../store/taskStore'
 import { formatDistanceToNow } from 'date-fns'
 
-export default function TaskCard({ task, onStartTimer }) {
+export default function TaskCard({ task, onStartTimer, onEdit, isDragging = false }) {
   const { toggleComplete, deleteTask } = useTaskStore()
   const [showDelete, setShowDelete] = useState(false)
 
@@ -77,13 +77,25 @@ export default function TaskCard({ task, onStartTimer }) {
           className="btn btn-secondary btn-small"
           onClick={() => onStartTimer()}
           title="Start Pomodoro"
+          style={{ cursor: isDragging ? 'grab' : 'pointer' }}
         >
           ⏱
         </button>
+        {onEdit && (
+          <button
+            className="btn btn-secondary btn-small"
+            onClick={() => onEdit()}
+            title="Edit"
+            style={{ cursor: isDragging ? 'grab' : 'pointer' }}
+          >
+            ✏️
+          </button>
+        )}
         <button
           className="btn btn-secondary btn-small"
           onClick={() => setShowDelete(!showDelete)}
           title="Delete"
+          style={{ cursor: isDragging ? 'grab' : 'pointer' }}
         >
           🗑
         </button>
