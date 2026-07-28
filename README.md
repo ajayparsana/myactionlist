@@ -1,45 +1,50 @@
 # MyActionList - Time Management Tool
 
-A Flutter-based time management app combining the Eisenhower Matrix for prioritization with the Pomodoro Technique for focused work sessions.
+A React web app combining the Eisenhower Matrix for prioritization with the Pomodoro Technique for focused work sessions. Hosted on GitHub Pages.
 
 ## Features
 
 - **Task Management**: Create, edit, delete, and organize tasks
-- **Eisenhower Matrix**: Prioritize tasks into 4 quadrants (Urgent/Important)
-- **Pomodoro Timer**: 25-min focus sessions with configurable breaks
-- **Local-First Sync**: Data stored locally with cloud sync via Supabase
-- **Cross-Device**: Access your tasks from any device
+- **Eisenhower Matrix**: Prioritize tasks into 4 quadrants (Urgent/Important) with drag-and-drop
+- **Pomodoro Timer**: 25-min focus sessions with 5/15-min breaks
+- **Real-Time Sync**: Tasks synced to Supabase cloud instantly
+- **Responsive Design**: Works on desktop and mobile browsers
 - **Focus Stats**: Track completed Pomodoro sessions per task
 
 ## Tech Stack
 
-- **Frontend**: Flutter (iOS & Android)
-- **Backend**: Supabase (PostgreSQL + Auth)
-- **Local Storage**: SQLite via Supabase Flutter SDK
+- **Frontend**: React 18 + Vite
+- **State Management**: Zustand
+- **Backend**: Supabase (PostgreSQL)
+- **Hosting**: GitHub Pages
 - **Authentication**: Hardcoded credentials (single user)
 
 ## Setup Instructions
 
 ### Prerequisites
 
-1. Flutter SDK (3.0+)
-   - [Install Flutter](https://flutter.dev/docs/get-started/install)
-   - Verify: `flutter --version` and `flutter doctor`
+1. Node.js 16+ and npm
+   - [Download Node.js](https://nodejs.org/)
+   - Verify: `node --version` and `npm --version`
 
 2. Supabase Account (Free)
    - [Create Account](https://supabase.com)
    - Create a new project
 
+3. GitHub Account
+   - For deploying to GitHub Pages
+
 ### Installation
 
-1. **Clone & Navigate**
+1. **Clone Repository**
    ```bash
+   git clone https://github.com/yourusername/myactionlist.git
    cd myactionlist
    ```
 
-2. **Add Dependencies**
+2. **Install Dependencies**
    ```bash
-   flutter pub get
+   npm install
    ```
 
 3. **Create Supabase Tables**
@@ -62,7 +67,7 @@ A Flutter-based time management app combining the Eisenhower Matrix for prioriti
      updated_at timestamp DEFAULT now()
    );
 
-   -- Pomodoro Sessions Table
+   -- Pomodoro Sessions Table (optional for future expansion)
    CREATE TABLE pomodoro_sessions (
      id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
      task_id uuid REFERENCES tasks(id) ON DELETE CASCADE,
@@ -80,101 +85,171 @@ A Flutter-based time management app combining the Eisenhower Matrix for prioriti
 
 4. **Configure Environment**
    
-   Create/update `.env` in project root:
+   Create `.env` in project root:
    ```
-   SUPABASE_URL=https://your-project.supabase.co
-   SUPABASE_ANON_KEY=your-anon-key
+   VITE_SUPABASE_URL=https://your-project.supabase.co
+   VITE_SUPABASE_ANON_KEY=your-anon-key
    ```
    
    Find these in Supabase Dashboard → Settings → API
 
-5. **Run the App**
+5. **Run Locally**
    
    ```bash
-   # iOS
-   flutter run -d ios
-   
-   # Android
-   flutter run -d android
-   
-   # All devices
-   flutter run
+   npm run dev
    ```
+   
+   Open http://localhost:5173 in your browser
+
+6. **Deploy to GitHub Pages**
+   
+   ```bash
+   npm run build
+   npm run deploy
+   ```
+   
+   Your app will be live at: `https://yourusername.github.io/myactionlist/`
 
 ## Project Structure
 
 ```
-lib/
-├── main.dart              # App entry & theme setup
-├── models/
-│   ├── task.dart          # Task data model
-│   └── pomodoro_session.dart
-├── screens/
-│   ├── home_screen.dart        # Task list
-│   ├── eisenhower_screen.dart  # 2x2 matrix
-│   ├── pomodoro_screen.dart    # Timer UI
-│   └── add_task_screen.dart    # Create/edit tasks
-└── services/
-    └── supabase_service.dart   # API calls
+src/
+├── main.jsx              # React entry point
+├── App.jsx               # Main app component & routing
+├── index.css             # Global styles
+├── components/
+│   ├── TaskList.jsx      # Task list view
+│   ├── TaskCard.jsx      # Individual task component
+│   ├── AddTaskModal.jsx  # Create task form
+│   ├── EisenhowerMatrix.jsx  # 2x2 drag-and-drop matrix
+│   └── PomodoroTimer.jsx # Focus timer
+└── store/
+    └── taskStore.js      # Zustand store (state + Supabase calls)
 ```
 
 ## Usage
 
 ### Adding a Task
-1. Tap **+** button on home screen
+1. Click **+** button (bottom-right on desktop, or visible on mobile)
 2. Enter title (required), notes, due date, tags
-3. Tap "Create Task"
+3. Click "Create Task"
+
+### Task List View
+- **Checkbox**: Mark tasks complete
+- **⏱ Timer**: Start a Pomodoro session
+- **🗑 Delete**: Remove task (with confirmation)
+- Tasks grouped into Pending and Completed sections
+- Displays due dates and Pomodoro session count
 
 ### Organizing (Eisenhower Matrix)
-1. Switch to **Matrix** tab
-2. **Drag tasks** into quadrants or click task to toggle completion
-3. Color-coded guidance:
-   - **Red**: Do Now (Urgent & Important)
-   - **Green**: Schedule (Not Urgent & Important)
-   - **Yellow**: Delegate (Urgent & Not Important)
-   - **Gray**: Delete (Not Urgent & Not Important)
+1. Switch to **⊞ Matrix** tab
+2. **Drag tasks** between quadrants to prioritize
+3. Click checkbox on any task to mark complete
+4. Color-coded guidance:
+   - **🔴 Red**: Do Now (Urgent & Important)
+   - **🟢 Green**: Schedule (Not Urgent & Important)
+   - **🟡 Yellow**: Delegate (Urgent & Not Important)
+   - **⚫ Gray**: Delete (Not Urgent & Not Important)
 
 ### Running Pomodoro
-1. Tap **Timer icon** on task
-2. Tap **Start** to begin 25-min focus session
-3. On completion, choose Break or Done
-4. Sessions auto-count on task
+1. Click **⏱** button on any task
+2. Click **Start** to begin 25-min focus session
+3. Timer counts down with visual feedback
+4. On completion, choose:
+   - **Long Break (15 min)** if 4 sessions completed
+   - **Short Break (5 min)** otherwise
+   - **Done** to close
+5. Sessions auto-increment on task
 
 ## Data Persistence
 
-- **Local**: Tasks sync to device storage on load
-- **Cloud**: Changes pushed to Supabase in real-time
+- **Cloud-First**: All tasks sync to Supabase instantly
+- **Real-Time**: Changes across tabs/devices sync automatically
+- **Offline**: App works offline (syncs when reconnected)
 - **Conflict Resolution**: Last-write-wins (timestamp-based)
 
 ## Credentials
 
-Single-user setup (no login screen). Credentials are hardcoded in Flutter config to keep it simple.
+Single-user setup (no login screen needed). Environment variables in `.env` control Supabase access.
+
+## Environment Variables
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `VITE_SUPABASE_URL` | Supabase project URL | `https://abc123.supabase.co` |
+| `VITE_SUPABASE_ANON_KEY` | Public anon key (safe in frontend) | `eyJhbGc...` |
+
+Get these from Supabase Dashboard → Settings → API.
+
+## GitHub Pages Deployment
+
+### First Time Setup
+1. Push code to GitHub: `git push origin main`
+2. Go to repo → Settings → Pages
+3. Set **Source** to `Deploy from a branch`
+4. Set **Branch** to `gh-pages` (will be created by deploy script)
+5. Run: `npm run deploy`
+
+### Subsequent Deployments
+```bash
+npm run build  # Build for production
+npm run deploy # Deploy to gh-pages branch
+```
+
+Your site will update at `https://yourusername.github.io/myactionlist/` (refresh to see changes).
+
+## Performance Tips
+
+- Pomodoro timer uses native browser timers (minimal CPU)
+- Tasks loaded once, then use Supabase real-time
+- Drag-and-drop uses native DOM API
+- CSS optimized with Flexbox/Grid
+
+## Browser Support
+
+- Chrome/Edge 90+
+- Firefox 88+
+- Safari 14+
+- Mobile browsers (iOS Safari, Chrome Mobile)
 
 ## Future Enhancements
 
-- [ ] Multiple users + authentication UI
-- [ ] Calendar sync
+- [ ] Real-time collaboration (multi-user sync)
+- [ ] Calendar integration
 - [ ] Habit tracking & streaks
-- [ ] AI task suggestions
-- [ ] Dark mode polish
-- [ ] Notifications & reminders
+- [ ] AI task prioritization
+- [ ] Dark mode toggle
+- [ ] Push notifications
 - [ ] Task templates
+- [ ] Analytics dashboard
 
 ## Troubleshooting
 
-**"flutter: command not found"**
-- Ensure Flutter SDK is in PATH
-- Run `flutter doctor` for diagnostic info
+**"Command not found: npm"**
+- Install Node.js from https://nodejs.org/
+- Verify: `npm --version`
+
+**Blank page after `npm run dev`**
+- Check console for errors (F12 → Console)
+- Ensure `.env` has valid Supabase credentials
+- Try: `npm run dev` again
 
 **Supabase connection fails**
-- Check `.env` credentials
-- Verify network connection
+- Verify `.env` VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
 - Check Supabase project is active
+- Test endpoint in browser: `https://your-project.supabase.co/rest/v1/`
 
-**Data not syncing**
-- Verify `.env` SUPABASE_URL and SUPABASE_ANON_KEY
-- Check Supabase RLS policies allow anon read/write
-- Try **Sync Now** in settings
+**Tasks not saving**
+- Check `.env` credentials are correct
+- Open browser DevTools (F12) → Network tab
+- Look for failed requests to Supabase
+- Verify Supabase tables exist (run SQL in Setup)
+
+**GitHub Pages shows 404**
+- Verify repo name matches: `github.com/yourusername/myactionlist`
+- Check vite.config.js has correct `base: '/myactionlist/'`
+- Clear browser cache and refresh
+- Deploy branch is set to `gh-pages` in GitHub Settings
 
 ## License
 
