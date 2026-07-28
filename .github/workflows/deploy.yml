@@ -25,6 +25,13 @@ jobs:
       - run: npm ci
       - run: npm run build
 
+      - name: Check dist folder
+        run: |
+          echo "Contents of dist:"
+          ls -la dist/
+          echo "Contents of dist/assets:"
+          ls -la dist/assets/ || echo "No assets folder found"
+
       - uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
